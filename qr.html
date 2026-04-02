@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>THE PAIN MD - QR</title>
+<style>
+body {
+  background:black;
+  color:red;
+  text-align:center;
+  font-family:monospace;
+}
+img {
+  margin-top:20px;
+  border:3px solid red;
+}
+</style>
+</head>
+
+<body>
+
+<h2>☠ THE PAIN MD ☠</h2>
+<p>SCAN THE CODE</p>
+
+<div id="qr"></div>
+
+<script>
+async function loadQR(){
+  let res = await fetch('/qr')
+  let data = await res.json()
+
+  document.getElementById("qr").innerHTML =
+    `<img src="${data.qr}" width="250">`
+}
+
+loadQR()
+</script>
+
+</body>
+</html>
