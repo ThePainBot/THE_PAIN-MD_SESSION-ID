@@ -1,14 +1,103 @@
-☠️ 𝐓𝐇𝐄 𝐏𝐀𝐈𝐍 𝐌𝐃 ☠️
-≡ DARK SYSTEM • PAIRING INTERFACE ≡
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>THE PAIN MD</title>
 
-⚠️ Access restricted to authorized users only.
+<style>
+body {
+  margin: 0;
+  background: black;
+  color: red;
+  font-family: monospace;
+  text-align: center;
+}
 
-🔳 QR SCAN  ➪ Instant Device Link  
-🔗 PAIR CODE ➪ Manual Authentication  
-💻 GITHUB   ➪ Dark Source Access  
-💬 CHANNEL  ➪ Official Network  
+/* 🔥 GLITCH EFFECT */
+body::before {
+  content: "";
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255,0,0,0.05),
+    rgba(255,0,0,0.05) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  animation: glitch 0.2s infinite;
+}
 
-☠️ SYSTEM STATUS : ACTIVE  
-☠️ MONITORING : ENABLED  
+@keyframes glitch {
+  0% { transform: translate(0); }
+  50% { transform: translate(2px,-2px); }
+  100% { transform: translate(0); }
+}
 
-© 𝐓𝐇𝐄 𝐏𝐀𝐈𝐍 𝐌𝐃
+/* BOX */
+.box {
+  border: 1px solid red;
+  margin: 20px;
+  padding: 20px;
+  box-shadow: 0 0 20px red;
+}
+
+/* BUTTON */
+button {
+  padding: 12px;
+  margin: 10px;
+  background: black;
+  border: 1px solid red;
+  color: red;
+  cursor: pointer;
+  width: 230px;
+}
+
+button:hover {
+  background: red;
+  color: black;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h1>☠️ 𝐓𝐇𝐄 𝐏𝐀𝐈𝐍 𝐌𝐃 ☠️</h1>
+<p>≡ DARK SYSTEM • CONTROL PANEL ≡</p>
+</div>
+
+<div class="box">
+<p>⚠️ Access restricted to authorized users only.</p>
+
+<p>🔳 QR SCAN  ➪ Instant Device Link</p>
+<p>🔗 PAIR CODE ➪ Manual Authentication</p>
+
+<br>
+
+<button onclick="window.open('https://github.com/The-Pain-01/The-Pain','_blank')">
+⟦ GITHUB ACCESS ⟧
+</button>
+
+<button onclick="window.open('https://whatsapp.com/channel/0029Vb7FTvDICVfgeK27ul2S','_blank')">
+⟦ JOIN CHANNEL ⟧
+</button>
+</div>
+
+<div class="box">
+<button onclick="location.href='/qrpage'">🔳 OPEN QR SCAN</button>
+<button onclick="location.href='/pair'">🔗 GENERATE PAIR CODE</button>
+</div>
+
+<div class="box">
+<p>☠️ SYSTEM STATUS : ACTIVE</p>
+<p>☠️ MONITORING : ENABLED</p>
+</div>
+
+<div class="box">
+<p>© 𝐓𝐇𝐄 𝐏𝐀𝐈𝐍 𝐌𝐃</p>
+</div>
+
+</body>
+</html>
