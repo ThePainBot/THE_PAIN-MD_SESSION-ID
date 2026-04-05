@@ -3,48 +3,53 @@ import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
-import events from 'events'; // ✅ FIX IMPORTANT
 
 import qrRouter from './qr.js';
 import pairRouter from './pair.js';
 
 const app = express();
 
-// 🔥 Fix limite events (IMPORTANT Baileys)
-events.EventEmitter.defaultMaxListeners = 500;
-
-// 🔥 Autoriser Vercel à appeler le backend
+// ☠️ CORS (important pour Vercel → Render)
 app.use(cors());
 
-// 📁 Gestion des chemins
+// 📁 Chemins
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ⚙️ PORT
 const PORT = process.env.PORT || 8000;
 
+// 🔥 Fix limite events (Baileys)
+import('events').then(events => {
+    events.EventEmitter.defaultMaxListeners = 500;
+});
+
 // 🧠 Middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// ❌ SUPPRIMÉ : express.static(__dirname)
-// 👉 évite conflits et problèmes sécurité
+app.use(express.static(__dirname));
 
 // ================= API =================
 
+// QR
 app.use('/qr', qrRouter);
+
+// Pair code
 app.use('/code', pairRouter);
 
 // ================= PAGES =================
 
+// Page Pair
 app.get('/pair', (req, res) => {
     res.sendFile(path.join(__dirname, 'pair.html'));
 });
 
+// Page QR
 app.get('/qrpage', (req, res) => {
     res.sendFile(path.join(__dirname, 'qr.html'));
 });
 
+// Page principale
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'main.html'));
 });
@@ -53,13 +58,22 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`
-╔════════════════════════════╗
-   ☠️  THE PAIN MD BACKEND ☠️
-╚════════════════════════════╝
+╔══════════════════════════════════════╗
+        ☠️ THE PAIN MD SYSTEM ☠️
+╚══════════════════════════════════════╝
 
-❖ Server running on port ${PORT}
-❖ Status : ONLINE
-❖ Mode : DARK SYSTEM ACTIVE
+🩸 STATUS   : ONLINE
+🩸 MODE     : DARK SYSTEM ACTIVE
+🩸 PORT     : ${PORT}
+
+🌐 BACKEND  : https://the-pain-md-session-id-zjus.onrender.com
+
+📢 CHANNEL  :
+https://whatsapp.com/channel/0029Vb7FTvDICVfgeK27ul2S
+
+💀 OWNER    : ⏤͟͟͞𝐓𝐇𝐄 ➪ 𝐏𝐀𝐈𝐍 ᭄
+
+========================================
 `);
 });
 
