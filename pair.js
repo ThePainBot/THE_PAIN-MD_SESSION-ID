@@ -2,7 +2,6 @@ import express from 'express'
 import fs from 'fs-extra'
 import pino from 'pino'
 import pn from 'awesome-phonenumber'
-import { exec } from 'child_process'
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -19,88 +18,65 @@ async function removeFile(path) {
 }
 
 router.get('/', async (req, res) => {
-  let num = req.query.number
-  const dirs = './auth_info_baileys'
-
-  await removeFile(dirs)
-
-  num = num.replace(/[^0-9]/g, '')
-  const phone = pn('+' + num)
-
-  if (!phone.isValid()) {
-    return res.status(400).send({ code: 'INVALID NUMBER' })
-  }
-
-  num = phone.getNumber('e164').replace('+', '')
-
   try {
-    const { state, saveCreds } = await useMultiFileAuthState(dirs)
+    let num = req.query.number
+
+    if (!num) {
+      return res.status(400).json({ code: 'NUMERO MANQUANT' })
+    }
+
+    // 🔥 Nettoyage numéro
+    num = num.replace(/[^0-9]/g, '')
+
+    const phone = pn('+' + num)
+
+    if (!phone.isValid()) {
+      return res.status(400).json({ code: 'NUMERO INVALIDE' })
+    }
+
+    num = phone.getNumber('e164').replace('+', '')
+
+    const dir = './auth_pair'
+
+    await removeFile(dir)
+
+    const { state, saveCreds } = await useMultiFileAuthState(dir)
     const { version } = await fetchLatestBaileysVersion()
 
     const sock = makeWASocket({
       version,
+      logger: pino({ level: 'silent' }),
+      browser: Browsers.windows('Chrome'),
       auth: {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
-      },
-      logger: pino({ level: 'fatal' }),
-      browser: Browsers.windows('Chrome'),
-      markOnlineOnConnect: false
-    })
-
-    // 🔥 ATTENDRE QUE ÇA SE CONNECTE AVANT CODE
-    sock.ev.on('connection.update', async ({ connection }) => {
-
-      if (connection === 'connecting') {
-        console.log("🔄 Connecting to WhatsApp...")
       }
-
-      if (connection === 'open') {
-        console.log("✅ CONNECTED SUCCESS")
-
-        if (!sock.authState.creds.registered) {
-          try {
-            let code = await sock.requestPairingCode(num)
-
-            code = code?.match(/.{1,4}/g)?.join('-') || code
-
-            if (!res.headersSent) {
-              res.send({ code })
-            }
-
-          } catch (err) {
-            console.log("❌ Pairing error:", err)
-            if (!res.headersSent) {
-              res.status(500).send({ code: 'PAIR ERROR' })
-            }
-          }
-        }
-      }
-
-      if (connection === 'close') {
-        console.log("❌ CONNECTION CLOSED")
-        await removeFile(dirs)
-      }
-
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    // ⏱ Timeout sécurité
-    setTimeout(() => {
-      if (!res.headersSent) {
-        res.status(408).send({ code: 'TIMEOUT' })
+    // 🔥 IMPORTANT : attendre que socket soit prêt
+    await delay(2000)
+
+    try {
+      const code = await sock.requestPairingCode(num)
+
+      if (!code) {
+        return res.status(500).json({ code: 'ECHEC GENERATION' })
       }
-    }, 20000)
+
+      const formatted = code.match(/.{1,4}/g)?.join('-') || code
+
+      return res.json({ code: formatted })
+
+    } catch (err) {
+      console.log("PAIR ERROR:", err)
+      return res.status(500).json({ code: 'SYSTEM FAILURE' })
+    }
 
   } catch (err) {
-    console.log("❌ FATAL:", err)
-    await removeFile(dirs)
-    exec('pm2 restart qasim')
-
-    if (!res.headersSent) {
-      res.status(503).send({ code: 'SYSTEM ERROR' })
-    }
+    console.log("GLOBAL ERROR:", err)
+    return res.status(500).json({ code: 'SERVER ERROR' })
   }
 })
 
