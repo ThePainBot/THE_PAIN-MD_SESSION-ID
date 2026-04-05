@@ -2,9 +2,11 @@ import express from 'express'
 import fs from 'fs-extra'
 import pino from 'pino'
 import pn from 'awesome-phonenumber'
+import { exec } from 'child_process'
 import {
   makeWASocket,
   useMultiFileAuthState,
+  delay,
   makeCacheableSignalKeyStore,
   Browsers,
   fetchLatestBaileysVersion
@@ -21,8 +23,6 @@ router.get('/', async (req, res) => {
   const dirs = './auth_info_baileys'
 
   await removeFile(dirs)
-
-  if (!num) return res.status(400).send({ code: "NO NUMBER" })
 
   num = num.replace(/[^0-9]/g, '')
   const phone = pn('+' + num)
@@ -43,52 +43,63 @@ router.get('/', async (req, res) => {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
       },
-      logger: pino({ level: 'silent' }),
+      logger: pino({ level: 'fatal' }),
       browser: Browsers.windows('Chrome'),
       markOnlineOnConnect: false
     })
 
-    // 🔥 ATTENDRE que la connexion soit prête
-    let sent = false
-
+    // 🔥 ATTENDRE QUE ÇA SE CONNECTE AVANT CODE
     sock.ev.on('connection.update', async ({ connection }) => {
 
       if (connection === 'connecting') {
-        console.log("🔄 Connecting...")
+        console.log("🔄 Connecting to WhatsApp...")
       }
 
-      if (connection === 'open' || connection === 'connecting') {
-        if (sent) return
+      if (connection === 'open') {
+        console.log("✅ CONNECTED SUCCESS")
 
-        try {
-          // 🔥 attendre un peu que WA soit ready
-          await new Promise(r => setTimeout(r, 4000))
+        if (!sock.authState.creds.registered) {
+          try {
+            let code = await sock.requestPairingCode(num)
 
-          let code = await sock.requestPairingCode(num)
+            code = code?.match(/.{1,4}/g)?.join('-') || code
 
-          code = code?.match(/.{1,4}/g)?.join('-') || code
+            if (!res.headersSent) {
+              res.send({ code })
+            }
 
-          sent = true
-
-          if (!res.headersSent) {
-            res.send({ code })
-          }
-
-        } catch (err) {
-          console.log("PAIR ERROR:", err)
-          if (!res.headersSent) {
-            res.status(500).send({ code: "PAIR FAILED" })
+          } catch (err) {
+            console.log("❌ Pairing error:", err)
+            if (!res.headersSent) {
+              res.status(500).send({ code: 'PAIR ERROR' })
+            }
           }
         }
       }
+
+      if (connection === 'close') {
+        console.log("❌ CONNECTION CLOSED")
+        await removeFile(dirs)
+      }
+
     })
 
     sock.ev.on('creds.update', saveCreds)
 
+    // ⏱ Timeout sécurité
+    setTimeout(() => {
+      if (!res.headersSent) {
+        res.status(408).send({ code: 'TIMEOUT' })
+      }
+    }, 20000)
+
   } catch (err) {
-    console.log(err)
+    console.log("❌ FATAL:", err)
+    await removeFile(dirs)
+    exec('pm2 restart qasim')
+
     if (!res.headersSent) {
-      res.status(500).send({ code: "SYSTEM ERROR" })
+      res.status(503).send({ code: 'SYSTEM ERROR' })
     }
   }
 })
