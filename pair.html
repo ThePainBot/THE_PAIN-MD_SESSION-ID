@@ -1,79 +1,196 @@
-import express from 'express'
-import fs from 'fs-extra'
-import pino from 'pino'
-import pn from 'awesome-phonenumber'
-import {
-  makeWASocket,
-  useMultiFileAuthState,
-  delay,
-  makeCacheableSignalKeyStore,
-  Browsers,
-  jidNormalizedUser,
-  fetchLatestBaileysVersion
-} from '@whiskeysockets/baileys'
-import { upload } from './mega.js'
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>PAIR • THE PAIN</title>
 
-const router = express.Router()
-
-async function removeFile(path) {
-  if (fs.existsSync(path)) await fs.remove(path)
+<style>
+/* ===== RESET ===== */
+body {
+  margin: 0;
+  background: black;
+  color: red;
+  font-family: monospace;
+  overflow: hidden;
 }
 
-router.get('/', async (req, res) => {
-  let num = req.query.number
-  const sessionPath = './session'
+/* ===== MATRIX BACKGROUND ===== */
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -1;
+}
 
-  await removeFile(sessionPath)
+/* ===== CONTAINER ===== */
+.container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 95%;
+  max-width: 700px;
+  text-align: center;
+}
 
-  num = num.replace(/[^0-9]/g, '')
-  const phone = pn('+' + num)
+/* ===== GLITCH TITLE ===== */
+.glitch {
+  font-size: 60px;
+  font-weight: bold;
+  position: relative;
+  animation: glitch 1s infinite;
+}
 
-  if (!phone.isValid()) {
-    return res.json({ code: 'INVALID NUMBER' })
+@keyframes glitch {
+  0% { text-shadow: 2px 0 red; }
+  20% { text-shadow: -2px 0 red; }
+  40% { text-shadow: 2px 2px red; }
+  60% { text-shadow: -2px -2px red; }
+  80% { text-shadow: 2px 0 red; }
+  100% { text-shadow: 0 0 red; }
+}
+
+/* ===== INPUT ===== */
+input {
+  width: 100%;
+  padding: 25px;
+  font-size: 22px;
+  margin-top: 30px;
+  background: black;
+  border: 2px solid red;
+  color: red;
+  text-align: center;
+}
+
+/* ===== BUTTON ===== */
+button {
+  width: 100%;
+  padding: 25px;
+  font-size: 22px;
+  margin-top: 20px;
+  background: black;
+  border: 2px solid red;
+  color: red;
+  cursor: pointer;
+}
+
+button:hover {
+  background: red;
+  color: black;
+}
+
+/* ===== RESULT ===== */
+#result {
+  margin-top: 30px;
+  font-size: 28px;
+  word-break: break-all;
+}
+
+/* ===== COPY BUTTON ===== */
+.copy {
+  margin-top: 15px;
+  padding: 15px;
+  font-size: 18px;
+}
+
+/* ===== FOOTER ===== */
+.footer {
+  margin-top: 40px;
+  font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="container">
+  <div class="glitch">☠️ THE PAIN SYSTEM ☠️</div>
+
+  <input id="number" placeholder="+243XXXXXXXXX">
+
+  <button onclick="generate()">⚡ GENERATE SESSION</button>
+
+  <div id="result"></div>
+
+  <div class="footer">
+    POWERED BY 🩸 ⏤͟͟͞𝐓𝐇𝐄 ➪ 𝐏𝐀𝐈𝐍 ᭄ 🩸
+  </div>
+</div>
+
+<script>
+/* ===== MATRIX EFFECT ===== */
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+
+canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
+
+const letters = "THEPAIN0123456789☠️⚠️✞";
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+
+const drops = [];
+for (let i = 0; i < columns; i++) drops[i] = 1;
+
+function draw() {
+  ctx.fillStyle = "rgba(0,0,0,0.05)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "red";
+  ctx.font = fontSize + "px monospace";
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = letters[Math.floor(Math.random() * letters.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975)
+      drops[i] = 0;
+
+    drops[i]++;
+  }
+}
+
+setInterval(draw, 35);
+
+/* ===== GENERATE ===== */
+async function generate() {
+  const num = document.getElementById("number").value;
+  const result = document.getElementById("result");
+
+  if (!num) {
+    result.innerHTML = "❌ ENTRE TON NUMÉRO";
+    return;
   }
 
-  num = phone.getNumber('e164').replace('+', '')
+  result.innerHTML = "⏳ GÉNÉRATION...";
 
-  const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
-  const { version } = await fetchLatestBaileysVersion()
+  try {
+    const res = await fetch("https://the-pain-md-session-id-zjus.onrender.com/code?number=" + num);
+    const data = await res.json();
 
-  const sock = makeWASocket({
-    version,
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
-    },
-    logger: pino({ level: 'fatal' }),
-    browser: Browsers.windows('Chrome')
-  })
-
-  sock.ev.on('connection.update', async ({ connection }) => {
-
-    if (connection === 'open') {
-      const file = `${sessionPath}/creds.json`
-
-      if (!fs.existsSync(file)) return
-
-      const link = await upload(fs.createReadStream(file), 'session.json')
-
-      const user = jidNormalizedUser(num + '@s.whatsapp.net')
-
-      await sock.sendMessage(user, {
-        text: `🔥 SESSION ID 🔥\n\n${link}`
-      })
-
-      await removeFile(sessionPath)
+    if (data.code) {
+      result.innerHTML = `
+        ${data.code}
+        <br>
+        <button class="copy" onclick="copyCode('${data.code}')">COPY</button>
+      `;
+    } else {
+      result.innerHTML = "❌ ERREUR";
     }
-  })
 
-  if (!sock.authState.creds.registered) {
-    await delay(1500)
-    let code = await sock.requestPairingCode(num)
-    code = code?.match(/.{1,4}/g)?.join('-')
-    res.json({ code })
+  } catch {
+    result.innerHTML = "❌ BACKEND OFFLINE";
   }
+}
 
-  sock.ev.on('creds.update', saveCreds)
-})
+/* ===== COPY ===== */
+function copyCode(code) {
+  navigator.clipboard.writeText(code);
+  alert("COPIED");
+}
+</script>
 
-export default router
+</body>
+</html>
