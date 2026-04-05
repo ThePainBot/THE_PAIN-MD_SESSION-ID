@@ -2,17 +2,13 @@ import express from 'express'
 import fs from 'fs-extra'
 import pino from 'pino'
 import pn from 'awesome-phonenumber'
-import { exec } from 'child_process'
 import {
   makeWASocket,
   useMultiFileAuthState,
-  delay,
   makeCacheableSignalKeyStore,
   Browsers,
-  jidNormalizedUser,
   fetchLatestBaileysVersion
 } from '@whiskeysockets/baileys'
-import { upload as megaUpload } from './mega.js'
 
 const router = express.Router()
 
@@ -20,21 +16,13 @@ async function removeFile(path) {
   if (fs.existsSync(path)) await fs.remove(path)
 }
 
-function randomMegaId(len = 6, numLen = 4) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let out = ''
-  for (let i = 0; i < len; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  const number = Math.floor(Math.random() * Math.pow(10, numLen))
-  return `${out}${number}`
-}
-
 router.get('/', async (req, res) => {
   let num = req.query.number
   const dirs = './auth_info_baileys'
 
   await removeFile(dirs)
+
+  if (!num) return res.status(400).send({ code: "NO NUMBER" })
 
   num = num.replace(/[^0-9]/g, '')
   const phone = pn('+' + num)
@@ -45,93 +33,64 @@ router.get('/', async (req, res) => {
 
   num = phone.getNumber('e164').replace('+', '')
 
-  async function runSession() {
-    try {
-      const { state, saveCreds } = await useMultiFileAuthState(dirs)
-      const { version } = await fetchLatestBaileysVersion()
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(dirs)
+    const { version } = await fetchLatestBaileysVersion()
 
-      const sock = makeWASocket({
-        version,
-        auth: {
-          creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
-        },
-        logger: pino({ level: 'fatal' }),
-        browser: Browsers.windows('Chrome'),
-        markOnlineOnConnect: false
-      })
+    const sock = makeWASocket({
+      version,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
+      },
+      logger: pino({ level: 'silent' }),
+      browser: Browsers.windows('Chrome'),
+      markOnlineOnConnect: false
+    })
 
-      let active = true
+    // 🔥 ATTENDRE que la connexion soit prête
+    let sent = false
 
-      // 🔥 GÉNÉRER CODE PENDANT 3 MIN
-      const start = Date.now()
+    sock.ev.on('connection.update', async ({ connection }) => {
 
-      async function sendPairCode() {
-        while (active && Date.now() - start < 180000) { // 3 minutes
-          try {
-            let code = await sock.requestPairingCode(num)
-            code = code?.match(/.{1,4}/g)?.join('-') || code
+      if (connection === 'connecting') {
+        console.log("🔄 Connecting...")
+      }
 
-            if (!res.headersSent) {
-              res.send({ code })
-            }
+      if (connection === 'open' || connection === 'connecting') {
+        if (sent) return
 
-            await delay(25000) // regen toutes les 25s
+        try {
+          // 🔥 attendre un peu que WA soit ready
+          await new Promise(r => setTimeout(r, 4000))
 
-          } catch (err) {
-            console.log("Retry pairing...")
-            await delay(5000)
+          let code = await sock.requestPairingCode(num)
+
+          code = code?.match(/.{1,4}/g)?.join('-') || code
+
+          sent = true
+
+          if (!res.headersSent) {
+            res.send({ code })
+          }
+
+        } catch (err) {
+          console.log("PAIR ERROR:", err)
+          if (!res.headersSent) {
+            res.status(500).send({ code: "PAIR FAILED" })
           }
         }
       }
+    })
 
-      if (!sock.authState.creds.registered) {
-        sendPairCode()
-      }
+    sock.ev.on('creds.update', saveCreds)
 
-      sock.ev.on('connection.update', async ({ connection }) => {
-
-        if (connection === 'open') {
-          active = false
-
-          const credsFile = `${dirs}/creds.json`
-          if (!fs.existsSync(credsFile)) return
-
-          try {
-            const id = randomMegaId()
-
-            const megaLink = await megaUpload(
-              fs.createReadStream(credsFile),
-              `${id}.json`
-            )
-
-            const match = megaLink.match(/mega\.nz\/file\/([^#]+)#(.+)/)
-            const sessionId = `pain~${match[1]}#${match[2]}`
-
-            const userJid = jidNormalizedUser(num + '@s.whatsapp.net')
-
-            await sock.sendMessage(userJid, {
-              text: `SESSION ID:\n${sessionId}`
-            })
-
-            await removeFile(dirs)
-
-          } catch {
-            await removeFile(dirs)
-          }
-        }
-      })
-
-      sock.ev.on('creds.update', saveCreds)
-
-    } catch (err) {
-      await removeFile(dirs)
-      exec('pm2 restart qasim')
-      if (!res.headersSent) res.status(503).send({ code: 'SYSTEM ERROR' })
+  } catch (err) {
+    console.log(err)
+    if (!res.headersSent) {
+      res.status(500).send({ code: "SYSTEM ERROR" })
     }
   }
-
-  await runSession()
 })
 
 export default router
