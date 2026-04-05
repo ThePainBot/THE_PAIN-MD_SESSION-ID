@@ -47,24 +47,52 @@ router.get('/', async (req, res) => {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }))
       },
-      logger: pino({ level: 'fatal' }),
+      logger: pino({ level: 'silent' }),
       browser: Browsers.windows('Chrome'),
       markOnlineOnConnect: false
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    await delay(3000)
+    let sent = false
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection } = update
+
+      // 🔥 attendre que WhatsApp soit prêt
+      if (connection === 'connecting') {
+        console.log("🔄 CONNECTING...")
+      }
+
+      if (connection === 'open') {
+        console.log("✅ CONNECTED")
+      }
+    })
+
+    // 🔥 DELAY PLUS LONG (IMPORTANT)
+    await delay(6000)
 
     if (!sock.authState.creds.registered) {
-      let code = await sock.requestPairingCode(num)
-      code = code?.match(/.{1,4}/g)?.join('-') || code
+      try {
+        let code = await sock.requestPairingCode(num)
 
-      return res.json({ code })
+        code = code?.match(/.{1,4}/g)?.join('-') || code
+
+        if (!sent) {
+          sent = true
+          return res.json({ code })
+        }
+
+      } catch (err) {
+        console.log("PAIR ERROR:", err)
+        return res.status(500).json({ code: "PAIR FAILED" })
+      }
+    } else {
+      return res.json({ code: "ALREADY LINKED" })
     }
 
   } catch (err) {
-    console.log(err)
+    console.log("SYSTEM ERROR:", err)
     return res.status(500).json({ code: "SYSTEM ERROR" })
   }
 })
