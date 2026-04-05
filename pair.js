@@ -26,6 +26,8 @@ router.get('/', async (req, res) => {
 
   const dirs = './auth_info_baileys'
 
+  await removeFile(dirs)
+
   num = num.replace(/[^0-9]/g, '')
   const phone = pn('+' + num)
 
@@ -52,19 +54,13 @@ router.get('/', async (req, res) => {
 
     sock.ev.on('creds.update', saveCreds)
 
-    // 🔥 IMPORTANT : plus long
     await delay(3000)
 
     if (!sock.authState.creds.registered) {
-      try {
-        let code = await sock.requestPairingCode(num)
-        code = code?.match(/.{1,4}/g)?.join('-') || code
+      let code = await sock.requestPairingCode(num)
+      code = code?.match(/.{1,4}/g)?.join('-') || code
 
-        return res.json({ code })
-      } catch (err) {
-        console.log(err)
-        return res.status(500).json({ code: "PAIR FAILED" })
-      }
+      return res.json({ code })
     }
 
   } catch (err) {
