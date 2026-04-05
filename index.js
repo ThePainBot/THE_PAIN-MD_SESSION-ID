@@ -3,11 +3,15 @@ import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import events from 'events'; // ✅ FIX IMPORTANT
 
 import qrRouter from './qr.js';
 import pairRouter from './pair.js';
 
 const app = express();
+
+// 🔥 Fix limite events (IMPORTANT Baileys)
+events.EventEmitter.defaultMaxListeners = 500;
 
 // 🔥 Autoriser Vercel à appeler le backend
 app.use(cors());
@@ -19,21 +23,20 @@ const __dirname = path.dirname(__filename);
 // ⚙️ PORT
 const PORT = process.env.PORT || 8000;
 
-// 🔥 Fix limite events (important Baileys)
-import('events').then(events => {
-    events.EventEmitter.defaultMaxListeners = 500;
-});
-
 // 🧠 Middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
 
-// 🚀 ROUTES API
+// ❌ SUPPRIMÉ : express.static(__dirname)
+// 👉 évite conflits et problèmes sécurité
+
+// ================= API =================
+
 app.use('/qr', qrRouter);
 app.use('/code', pairRouter);
 
-// 🌐 PAGES FRONT
+// ================= PAGES =================
+
 app.get('/pair', (req, res) => {
     res.sendFile(path.join(__dirname, 'pair.html'));
 });
@@ -46,7 +49,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'main.html'));
 });
 
-// 🚀 START SERVER
+// ================= SERVER =================
+
 app.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════╗
