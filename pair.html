@@ -2,194 +2,139 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>PAIR • THE PAIN</title>
+<title>THE PAIN MD • PAIR</title>
 
 <style>
-/* ===== RESET ===== */
-body {
-  margin: 0;
-  background: black;
-  color: red;
-  font-family: monospace;
-  overflow: hidden;
+body{
+  background:black;
+  color:#ff0000;
+  font-family:monospace;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  margin:0;
 }
 
-/* ===== MATRIX BACKGROUND ===== */
-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: -1;
+/* MATRIX RAIN */
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  z-index:-1;
 }
 
-/* ===== CONTAINER ===== */
-.container {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 95%;
-  max-width: 700px;
-  text-align: center;
+/* CONTAINER */
+.container{
+  width:95%;
+  max-width:600px;
+  text-align:center;
 }
 
-/* ===== GLITCH TITLE ===== */
-.glitch {
-  font-size: 60px;
-  font-weight: bold;
-  position: relative;
-  animation: glitch 1s infinite;
+/* TITRE */
+h1{
+  font-size:45px;
+  margin-bottom:10px;
+  animation:glitch 1s infinite;
 }
 
-@keyframes glitch {
-  0% { text-shadow: 2px 0 red; }
-  20% { text-shadow: -2px 0 red; }
-  40% { text-shadow: 2px 2px red; }
-  60% { text-shadow: -2px -2px red; }
-  80% { text-shadow: 2px 0 red; }
-  100% { text-shadow: 0 0 red; }
+/* INPUT */
+input{
+  width:100%;
+  padding:22px;
+  font-size:20px;
+  margin:20px 0;
+  background:black;
+  border:2px solid red;
+  color:red;
 }
 
-/* ===== INPUT ===== */
-input {
-  width: 100%;
-  padding: 25px;
-  font-size: 22px;
-  margin-top: 30px;
-  background: black;
-  border: 2px solid red;
-  color: red;
-  text-align: center;
+/* BOUTON */
+button{
+  width:100%;
+  padding:22px;
+  font-size:20px;
+  background:black;
+  border:2px solid red;
+  color:red;
+  cursor:pointer;
 }
 
-/* ===== BUTTON ===== */
-button {
-  width: 100%;
-  padding: 25px;
-  font-size: 22px;
-  margin-top: 20px;
-  background: black;
-  border: 2px solid red;
-  color: red;
-  cursor: pointer;
+/* RESULT */
+#result{
+  margin-top:20px;
+  font-size:22px;
 }
 
-button:hover {
-  background: red;
-  color: black;
-}
-
-/* ===== RESULT ===== */
-#result {
-  margin-top: 30px;
-  font-size: 28px;
-  word-break: break-all;
-}
-
-/* ===== COPY BUTTON ===== */
-.copy {
-  margin-top: 15px;
-  padding: 15px;
-  font-size: 18px;
-}
-
-/* ===== FOOTER ===== */
-.footer {
-  margin-top: 40px;
-  font-size: 16px;
+/* GLITCH */
+@keyframes glitch{
+  0%{text-shadow:2px 0 red;}
+  50%{text-shadow:-2px 0 red;}
+  100%{text-shadow:2px 0 red;}
 }
 </style>
 </head>
 
 <body>
 
-<canvas id="matrix"></canvas>
+<canvas id="rain"></canvas>
 
 <div class="container">
-  <div class="glitch">☠️ THE PAIN SYSTEM ☠️</div>
+  <h1>☠️ THE PAIN MD ☠️</h1>
+
+  <p>Entrer votre numéro WhatsApp (format international)</p>
 
   <input id="number" placeholder="+243XXXXXXXXX">
 
-  <button onclick="generate()">⚡ GENERATE SESSION</button>
+  <button onclick="gen()">GENERATE PAIR CODE</button>
 
   <div id="result"></div>
 
-  <div class="footer">
-    POWERED BY 🩸 ⏤͟͟͞𝐓𝐇𝐄 ➪ 𝐏𝐀𝐈𝐍 ᭄ 🩸
-  </div>
+  <p>POWERED BY 🩸 ⏤͟͟͞𝐓𝐇𝐄 ➪ 𝐏𝐀𝐈𝐍 ᭄ 🩸</p>
 </div>
 
 <script>
-/* ===== MATRIX EFFECT ===== */
-const canvas = document.getElementById("matrix");
-const ctx = canvas.getContext("2d");
+async function gen(){
+  let num = document.getElementById("number").value;
+  let res = await fetch("/code?number="+num);
+  let data = await res.json();
+  document.getElementById("result").innerHTML = data.code || "ERROR";
+}
+
+/* MATRIX RAIN */
+let canvas = document.getElementById("rain");
+let ctx = canvas.getContext("2d");
 
 canvas.height = window.innerHeight;
 canvas.width = window.innerWidth;
 
-const letters = "THEPAIN0123456789☠️⚠️✞";
-const fontSize = 14;
-const columns = canvas.width / fontSize;
+let letters = "THEPAIN☠️123456789@#$%^&*";
+letters = letters.split("");
 
-const drops = [];
-for (let i = 0; i < columns; i++) drops[i] = 1;
+let fontSize = 14;
+let columns = canvas.width / fontSize;
+let drops = [];
 
-function draw() {
-  ctx.fillStyle = "rgba(0,0,0,0.05)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+for(let x=0;x<columns;x++) drops[x]=1;
 
-  ctx.fillStyle = "red";
-  ctx.font = fontSize + "px monospace";
+function draw(){
+  ctx.fillStyle="rgba(0,0,0,0.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  for (let i = 0; i < drops.length; i++) {
-    const text = letters[Math.floor(Math.random() * letters.length)];
-    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+  ctx.fillStyle="#ff0000";
+  ctx.font=fontSize+"px monospace";
 
-    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975)
-      drops[i] = 0;
+  for(let i=0;i<drops.length;i++){
+    let text=letters[Math.floor(Math.random()*letters.length)];
+    ctx.fillText(text,i*fontSize,drops[i]*fontSize);
+
+    if(drops[i]*fontSize>canvas.height && Math.random()>0.975)
+      drops[i]=0;
 
     drops[i]++;
   }
 }
-
-setInterval(draw, 35);
-
-/* ===== GENERATE ===== */
-async function generate() {
-  const num = document.getElementById("number").value;
-  const result = document.getElementById("result");
-
-  if (!num) {
-    result.innerHTML = "❌ ENTRE TON NUMÉRO";
-    return;
-  }
-
-  result.innerHTML = "⏳ GÉNÉRATION...";
-
-  try {
-    const res = await fetch("https://the-pain-md-session-id-zjus.onrender.com/code?number=" + num);
-    const data = await res.json();
-
-    if (data.code) {
-      result.innerHTML = `
-        ${data.code}
-        <br>
-        <button class="copy" onclick="copyCode('${data.code}')">COPY</button>
-      `;
-    } else {
-      result.innerHTML = "❌ ERREUR";
-    }
-
-  } catch {
-    result.innerHTML = "❌ BACKEND OFFLINE";
-  }
-}
-
-/* ===== COPY ===== */
-function copyCode(code) {
-  navigator.clipboard.writeText(code);
-  alert("COPIED");
-}
+setInterval(draw,33);
 </script>
 
 </body>
