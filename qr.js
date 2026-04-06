@@ -1,80 +1,103 @@
-import express from 'express'
-import fs from 'fs-extra'
-import pino from 'pino'
-import QRCode from 'qrcode'
-import { exec } from 'child_process'
+import express from 'express';
+import fs from 'fs-extra';
+import pino from 'pino';
+import QRCode from 'qrcode';
+import { exec } from 'child_process';
 import {
-  makeWASocket,
-  useMultiFileAuthState,
-  makeCacheableSignalKeyStore,
-  Browsers,
-  jidNormalizedUser,
-  fetchLatestBaileysVersion,
-  delay
-} from '@whiskeysockets/baileys'
-import { upload } from './mega.js'
+    makeWASocket,
+    useMultiFileAuthState,
+    makeCacheableSignalKeyStore,
+    Browsers,
+    jidNormalizedUser,
+    fetchLatestBaileysVersion,
+    delay
+} from '@whiskeysockets/baileys';
 
-const router = express.Router()
+const router = express.Router();
 
-async function removeFile(path) {
-  if (fs.existsSync(path)) await fs.remove(path)
+const MESSAGE = `
+╭━━━━━━━━━━━━━━━☠️━━━━━━━━━━━━━━━╮
+┃        𝐓𝐇𝐄 𝐏𝐀𝐈𝐍-MD
+┃        ❖ RITUEL ACCOMPLI ❖
+┃
+┃ 🩸 SESSION LIÉE AU SYSTÈME
+┃ ⚠️ NE LA PARTAGE JAMAIS
+┃
+┃ 📢 CHANNEL OFFICIEL :
+┃ https://whatsapp.com/channel/0029Vb7FTvDICVfgeK27ul2S
+┃
+┃ ☠️ POWERED BY THE PAIN ☠️
+╰━━━━━━━━━━━━━━━☠️━━━━━━━━━━━━━━━╯
+`;
+
+async function removeFile(filePath) {
+    if (fs.existsSync(filePath)) await fs.remove(filePath);
 }
 
 router.get('/', async (req, res) => {
-  const dirs = './qr_session'
+    const sessionId = Date.now().toString();
+    const dirs = `./qr_sessions/session_${sessionId}`;
 
-  await removeFile(dirs)
-
-  const { state, saveCreds } = await useMultiFileAuthState(dirs)
-  const { version } = await fetchLatestBaileysVersion()
-
-  let sock = makeWASocket({
-    version,
-    logger: pino({ level: 'silent' }),
-    browser: Browsers.windows('Chrome'),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
-    },
-  })
-
-  sock.ev.on('connection.update', async ({ connection, qr }) => {
-
-    if (qr) {
-      const qrData = await QRCode.toDataURL(qr)
-      res.send({ qr: qrData })
+    if (!fs.existsSync('./qr_sessions')) {
+        await fs.mkdir('./qr_sessions', { recursive: true });
     }
 
-    if (connection === 'open') {
-      const credsFile = `${dirs}/creds.json`
+    async function initiateSession() {
+        if (!fs.existsSync(dirs)) await fs.mkdir(dirs, { recursive: true });
 
-      const megaUrl = await upload(
-        fs.createReadStream(credsFile),
-        `${Date.now()}.json`
-      )
+        const { state, saveCreds } = await useMultiFileAuthState(dirs);
 
-      const match = megaUrl.match(/mega\.nz\/file\/([^#]+)#(.+)/)
-      const sessionId = `pain~${match[1]}#${match[2]}`
+        try {
+            const { version } = await fetchLatestBaileysVersion();
 
-      const userJid = jidNormalizedUser(sock.authState.creds.me.id)
+            let sock = makeWASocket({
+                version,
+                logger: pino({ level: 'silent' }),
+                browser: Browsers.windows('Chrome'),
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+                },
+                markOnlineOnConnect: false
+            });
 
-      await sock.sendMessage(userJid, {
-        text:
-`☠️ 𝐓𝐇𝐄_𝐏𝐀𝐈𝐍-MD ☠️
+            sock.ev.on('connection.update', async ({ connection, qr }) => {
 
-❄️ SESSION EXTRAITE DU NÉANT ❄️
+                if (qr) {
+                    const qrDataURL = await QRCode.toDataURL(qr);
+                    res.send({ qr: qrDataURL });
+                }
 
-${sessionId}
+                if (connection === 'open') {
+                    const credsFile = dirs + '/creds.json';
 
-⚠️ Garde cette clé.`
-      })
+                    if (fs.existsSync(credsFile)) {
+                        const credsData = fs.readFileSync(credsFile, 'utf-8');
+                        const base64Session = Buffer.from(credsData).toString('base64');
 
-      await delay(1000)
-      await removeFile(dirs)
+                        const session = `pain==${base64Session}`;
+
+                        const userJid = jidNormalizedUser(sock.authState.creds.me.id);
+
+                        const msg = await sock.sendMessage(userJid, { text: session });
+                        await sock.sendMessage(userJid, { text: MESSAGE, quoted: msg });
+                    }
+
+                    await delay(4000);
+                    await removeFile(dirs);
+                }
+            });
+
+            sock.ev.on('creds.update', saveCreds);
+
+        } catch (err) {
+            exec('pm2 restart qasim');
+            if (!res.headersSent) res.status(503).send({ error: 'Service error' });
+            await removeFile(dirs);
+        }
     }
-  })
 
-  sock.ev.on('creds.update', saveCreds)
-})
+    await initiateSession();
+});
 
-export default router
+export default router;
