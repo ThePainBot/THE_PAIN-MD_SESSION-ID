@@ -1,38 +1,113 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-<title>THE PAIN MD - QR</title>
+<meta charset="UTF-8">
+<title>THE PAIN MD • QR</title>
+
 <style>
-body {
+body{
   background:black;
   color:red;
-  text-align:center;
   font-family:monospace;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  margin:0;
 }
-img {
+
+/* MATRIX */
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  z-index:-1;
+}
+
+/* CONTAINER */
+.container{
+  text-align:center;
+}
+
+/* TITRE */
+h1{
+  font-size:40px;
+  animation:glitch 1s infinite;
+}
+
+/* QR */
+img{
+  width:350px;
+  height:350px;
   margin-top:20px;
   border:3px solid red;
+}
+
+/* GLITCH */
+@keyframes glitch{
+  0%{text-shadow:2px 0 red;}
+  50%{text-shadow:-2px 0 red;}
+  100%{text-shadow:2px 0 red;}
 }
 </style>
 </head>
 
 <body>
 
-<h2>☠ THE PAIN MD ☠</h2>
-<p>SCAN THE CODE</p>
+<canvas id="rain"></canvas>
 
-<div id="qr"></div>
+<div class="container">
+  <h1>☠️ THE PAIN MD ☠️</h1>
+
+  <p>Génération du QR…</p>
+
+  <img id="qr">
+
+  <p>POWERED BY 🩸 ⏤͟͟͞𝐓𝐇𝐄 ➪ 𝐏𝐀𝐈𝐍 ᭄ 🩸</p>
+</div>
 
 <script>
-async function loadQR(){
-  let res = await fetch('/qr')
-  let data = await res.json()
-
-  document.getElementById("qr").innerHTML =
-    `<img src="${data.qr}" width="250">`
+async function load(){
+  let res = await fetch("/qr");
+  let data = await res.json();
+  document.getElementById("qr").src = data.qr;
 }
+load();
 
-loadQR()
+/* MATRIX */
+let canvas=document.getElementById("rain");
+let ctx=canvas.getContext("2d");
+
+canvas.height=window.innerHeight;
+canvas.width=window.innerWidth;
+
+let letters="THEPAIN☠️123456789";
+letters=letters.split("");
+
+let fontSize=14;
+let columns=canvas.width/fontSize;
+let drops=[];
+
+for(let x=0;x<columns;x++) drops[x]=1;
+
+function draw(){
+  ctx.fillStyle="rgba(0,0,0,0.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="red";
+  ctx.font=fontSize+"px monospace;
+
+  for(let i=0;i<drops.length;i++){
+    let text=letters[Math.floor(Math.random()*letters.length)];
+    ctx.fillText(text,i*fontSize,drops[i]*fontSize);
+
+    if(drops[i]*fontSize>canvas.height && Math.random()>0.975)
+      drops[i]=0;
+
+    drops[i]++;
+  }
+}
+setInterval(draw,33);
 </script>
 
 </body>
